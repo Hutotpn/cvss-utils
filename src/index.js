@@ -1,129 +1,151 @@
-function calculateCVSS(version, metrics) {
-  if (version === "v3") {
-    return calculateCVSSv3(metrics);
-  } else if (version === "v4") {
-    return calculateCVSSv4(metrics);
-  } else {
-    throw new Error("Invalid CVSS version. Please use 'v3' or 'v4'.");
-  }
-}
+/**
+ * CVSS Base Score Calculator (v3.1 & v4.0)
+ * Reference: https://www.first.org/cvss/specification-document
+ */
 
-// * CVSS v3.1 calculation
-function calculateCVSSv3({ AV, AC, PR, UI, C, I, A }) {
-  const AV_WEIGHTS = { N: 0.85, A: 0.62, L: 0.55, P: 0.2 };
-  const AC_WEIGHTS = { L: 0.77, H: 0.44 };
-  const PR_WEIGHTS = {
-    U: { N: 0.85, L: 0.62, H: 0.27 },
-    C: { N: 0.85, L: 0.68, H: 0.5 },
+function CVSSv3({
+  attackVector,
+  attackComplexity,
+  privilegesRequired,
+  userInteraction,
+  scope,
+  confidentiality,
+  integrity,
+  availability,
+}) {
+  const metrics = {
+    AV: { N: 0.85, A: 0.62, L: 0.55, P: 0.2 },
+    AC: { L: 0.77, H: 0.44 },
+    PR: {
+      U: { N: 0.85, L: 0.62, H: 0.27 },
+      C: { N: 0.85, L: 0.68, H: 0.5 },
+    },
+    UI: { N: 0.85, R: 0.62 },
+    C: { N: 0, L: 0.22, H: 0.56 },
+    I: { N: 0, L: 0.22, H: 0.56 },
+    A: { N: 0, L: 0.22, H: 0.56 },
   };
-  const UI_WEIGHTS = { N: 0.85, R: 0.62 };
-  const IMPACT_WEIGHTS = { H: 0.56, L: 0.22, N: 0.0 };
 
-  // Validating Exploitability Metrics
   if (
-    !Object.prototype.hasOwnProperty.call(AV_WEIGHTS, AV) ||
-    !Object.prototype.hasOwnProperty.call(AC_WEIGHTS, AC) ||
-    !Object.prototype.hasOwnProperty.call(PR_WEIGHTS["U"], PR) ||
-    !Object.prototype.hasOwnProperty.call(UI_WEIGHTS, UI)
+    !attackVector ||
+    !attackComplexity ||
+    !privilegesRequired ||
+    !userInteraction ||
+    !scope ||
+    !confidentiality ||
+    !integrity ||
+    !availability
   ) {
-    throw new Error("Invalid Exploitability Metric value.");
+    throw new Error("All CVSS v3.1 base metrics must be provided.");
   }
 
-  // Validating Impact Metrics
-  if (
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, C) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, I) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, A)
-  ) {
-    throw new Error("Invalid Impact Metric value.");
-  }
+  const AV = metrics.AV[attackVector];
+  const AC = metrics.AC[attackComplexity];
+  const PR = metrics.PR[scope][privilegesRequired];
+  const UI = metrics.UI[userInteraction];
+  const C = metrics.C[confidentiality];
+  const I = metrics.I[integrity];
+  const A = metrics.A[availability];
 
-  const impactSubscore =
-    1 -
-    (1 - IMPACT_WEIGHTS[C]) * (1 - IMPACT_WEIGHTS[I]) * (1 - IMPACT_WEIGHTS[A]);
-  const impact = 6.42 * impactSubscore;
+  const impactSubScore = 1 - (1 - C) * (1 - I) * (1 - A);
+  const impact =
+    scope === "U"
+      ? 6.42 * impactSubScore
+      : 7.52 * (impactSubScore - 0.029) -
+        3.25 * Math.pow(impactSubScore - 0.02, 15);
 
-  const exploitability =
-    8.22 *
-    AV_WEIGHTS[AV] *
-    AC_WEIGHTS[AC] *
-    PR_WEIGHTS["U"][PR] *
-    UI_WEIGHTS[UI];
-
-  let baseScore = 0;
-  if (impact <= 0) {
-    baseScore = 0;
-  } else {
-    baseScore = Math.min(impact + exploitability, 10);
-  }
+  const exploitability = 8.22 * AV * AC * PR * UI;
+  const baseScore =
+    scope === "U"
+      ? Math.min(impact + exploitability, 10)
+      : Math.min(1.08 * (impact + exploitability), 10);
 
   return Math.round(baseScore * 10) / 10;
 }
 
-// * CVSS v4.0 calculation
-function calculateCVSSv4({ AV, AC, PR, UI, AT, VC, VI, VA, SC, SI, SA }) {
-  const AV_WEIGHTS = { N: 0.85, A: 0.62, L: 0.55, P: 0.2 };
-  const AC_WEIGHTS = { L: 0.77, H: 0.44 };
-  const PR_WEIGHTS = {
-    N: { N: 0.85, L: 0.62, H: 0.27 },
-    L: { N: 0.77, L: 0.5, H: 0.2 },
+function CVSSv4({
+  attackVector,
+  attackComplexity,
+  attackRequirements,
+  privilegesRequired,
+  userInteraction,
+  vulnerabilityResponseEffort,
+  providerUrgency,
+  systemRecovery,
+  confidentiality,
+  integrity,
+  availability,
+  safetyConfidentiality = "N",
+  safetyIntegrity = "N",
+  safetyAvailability = "N",
+}) {
+  const metrics = {
+    AV: { N: 0.85, A: 0.62, L: 0.55, P: 0.2 },
+    AC: { L: 0.77, H: 0.44 },
+    AT: { N: 1.0, P: 0.85 },
+    PR: { N: 0.85, L: 0.62, H: 0.27 },
+    UI: { N: 0.85, R: 0.62 },
+    VC: { N: 0, L: 0.22, H: 0.56 },
+    VI: { N: 0, L: 0.22, H: 0.56 },
+    VA: { N: 0, L: 0.22, H: 0.56 },
+    SC: { N: 0, L: 0.22, H: 0.56 },
+    SI: { N: 0, L: 0.22, H: 0.56 },
+    SA: { N: 0, L: 0.22, H: 0.56 },
   };
-  const UI_WEIGHTS = { N: 0.85, R: 0.62 };
-  const AT_WEIGHTS = { N: 0.85, P: 0.62 }; // 'L' is not valid, corrected to 'P'
-  const IMPACT_WEIGHTS = { H: 0.56, L: 0.22, N: 0.0 };
 
-  // Validating Exploitability Metrics
+  // Validate all required metrics are provided
   if (
-    !Object.prototype.hasOwnProperty.call(AV_WEIGHTS, AV) ||
-    !Object.prototype.hasOwnProperty.call(AC_WEIGHTS, AC) ||
-    !Object.prototype.hasOwnProperty.call(PR_WEIGHTS[PR], UI) ||
-    !Object.prototype.hasOwnProperty.call(UI_WEIGHTS, UI) ||
-    !Object.prototype.hasOwnProperty.call(AT_WEIGHTS, AT)
+    !attackVector ||
+    !attackComplexity ||
+    !attackRequirements ||
+    !privilegesRequired ||
+    !userInteraction ||
+    !vulnerabilityResponseEffort ||
+    !providerUrgency ||
+    !systemRecovery ||
+    !confidentiality ||
+    !integrity ||
+    !availability
   ) {
-    throw new Error("Invalid Exploitability Metric value.");
+    throw new Error("All required CVSS v4.0 metrics must be provided.");
   }
 
-  // Validating Impact Metrics
-  if (
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, VC) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, VI) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, VA) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, SC) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, SI) ||
-    !Object.prototype.hasOwnProperty.call(IMPACT_WEIGHTS, SA)
-  ) {
-    throw new Error("Invalid Impact Metric value.");
-  }
+  // Destructure all metrics
+  const AV = metrics.AV[attackVector];
+  const AC = metrics.AC[attackComplexity];
+  const AT = metrics.AT[attackRequirements];
+  const PR = metrics.PR[privilegesRequired];
+  const UI = metrics.UI[userInteraction];
+  const VC = metrics.VC[confidentiality];
+  const VI = metrics.VI[integrity];
+  const VA = metrics.VA[availability];
+  const SC = metrics.SC[safetyConfidentiality];
+  const SI = metrics.SI[safetyIntegrity];
+  const SA = metrics.SA[safetyAvailability];
 
-  const impactSubscore =
-    1 -
-    (1 - IMPACT_WEIGHTS[VC]) *
-      (1 - IMPACT_WEIGHTS[VI]) *
-      (1 - IMPACT_WEIGHTS[VA]) *
-      (1 - IMPACT_WEIGHTS[SC]) *
-      (1 - IMPACT_WEIGHTS[SI]) *
-      (1 - IMPACT_WEIGHTS[SA]);
-  const impact = 7.52 * impactSubscore;
+  // Calculate exploitability
+  const exploitability = 8.22 * AV * AC * AT * PR * UI;
 
-  const exploitability =
-    8.22 *
-    AV_WEIGHTS[AV] *
-    AC_WEIGHTS[AC] *
-    PR_WEIGHTS[PR][UI] *
-    UI_WEIGHTS[UI] *
-    AT_WEIGHTS[AT];
+  // Calculate impact sub-scores
+  const impactSubScore = 1 - (1 - VC) * (1 - VI) * (1 - VA);
+  const safetySubScore = 1 - (1 - SC) * (1 - SI) * (1 - SA);
 
-  let baseScore = 0;
-  if (impact <= 0) {
-    baseScore = 0;
-  } else {
-    baseScore = Math.min(impact + exploitability, 10);
-  }
+  // Impact and safety impact calculations
+  const impact =
+    7.52 * (impactSubScore - 0.029) -
+    3.25 * Math.pow(impactSubScore - 0.02, 15);
+  const safetyImpact = 6.42 * safetySubScore;
+
+  // Base score calculation
+  const baseScore = Math.min(
+    1.08 * (impact + exploitability + safetyImpact),
+    10
+  );
 
   return Math.round(baseScore * 10) / 10;
 }
 
-// Export module
 module.exports = {
-  calculateCVSS,
+  CVSSv3,
+  CVSSv4,
 };

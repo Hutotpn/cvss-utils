@@ -1,0 +1,37 @@
+name: Publish to npm & GitHub Packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org/"
+          scope: "@Hutotpn" # replace this with your actual GitHub username
+
+      # Install deps
+      - run: npm install
+
+      # Publish to npmjs.org
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Setup for GitHub Packages
+      - name: Set GitHub registry
+        run: npm config set registry https://npm.pkg.github.com/
+
+      - name: Publish to GitHub Packages
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
