@@ -3,17 +3,18 @@
  * Reference: https://www.first.org/cvss/specification-document
  */
 
+// CVSS v3.1 Base Score
 function CVSSv3({
-  attackVector,
-  attackComplexity,
-  privilegesRequired,
-  userInteraction,
-  scope,
-  confidentiality,
-  integrity,
-  availability,
+  attackVector, // AV: N, A, L, P
+  attackComplexity, // AC: L, H
+  privilegesRequired, // PR: N, L, H
+  userInteraction, // UI: N, R
+  scope, // S: U, C
+  confidentiality, // C: N, L, H
+  integrity, // I: N, L, H
+  availability, // A: N, L, H
 }) {
-  const metrics = {
+  const W = {
     AV: { N: 0.85, A: 0.62, L: 0.55, P: 0.2 },
     AC: { L: 0.77, H: 0.44 },
     PR: {
@@ -27,62 +28,64 @@ function CVSSv3({
   };
 
   if (
-    !attackVector ||
-    !attackComplexity ||
-    !privilegesRequired ||
-    !userInteraction ||
-    !scope ||
-    !confidentiality ||
-    !integrity ||
-    !availability
+    !W.AV[attackVector] ||
+    !W.AC[attackComplexity] ||
+    !W.PR[scope]?.[privilegesRequired] ||
+    !W.UI[userInteraction] ||
+    !Object.prototype.hasOwnProperty.call(W.C, confidentiality) ||
+    !Object.prototype.hasOwnProperty.call(W.I, integrity) ||
+    !Object.prototype.hasOwnProperty.call(W.A, availability) ||
+    !["U", "C"].includes(scope)
   ) {
-    throw new Error("All CVSS v3.1 base metrics must be provided.");
+    throw new Error("All CVSS v3.1 base metrics must be provided and valid.");
   }
 
-  const AV = metrics.AV[attackVector];
-  const AC = metrics.AC[attackComplexity];
-  const PR = metrics.PR[scope][privilegesRequired];
-  const UI = metrics.UI[userInteraction];
-  const C = metrics.C[confidentiality];
-  const I = metrics.I[integrity];
-  const A = metrics.A[availability];
+  const AVw = W.AV[attackVector];
+  const ACw = W.AC[attackComplexity];
+  const PRw = W.PR[scope][privilegesRequired];
+  const UIw = W.UI[userInteraction];
+  const Cw = W.C[confidentiality];
+  const Iw = W.I[integrity];
+  const Aw = W.A[availability];
 
-  const impactSubScore = 1 - (1 - C) * (1 - I) * (1 - A);
+  const impactSub = 1 - (1 - Cw) * (1 - Iw) * (1 - Aw);
   const impact =
     scope === "U"
-      ? 6.42 * impactSubScore
-      : 7.52 * (impactSubScore - 0.029) -
-        3.25 * Math.pow(impactSubScore - 0.02, 15);
+      ? 6.42 * impactSub
+      : 7.52 * (impactSub - 0.029) - 3.25 * Math.pow(impactSub - 0.02, 15);
 
-  const exploitability = 8.22 * AV * AC * PR * UI;
-  const baseScore =
-    scope === "U"
-      ? Math.min(impact + exploitability, 10)
-      : Math.min(1.08 * (impact + exploitability), 10);
+  const exploit = 8.22 * AVw * ACw * PRw * UIw;
 
-  return Math.round(baseScore * 10) / 10;
+  let base = 0;
+  if (impact > 0) {
+    base =
+      scope === "U"
+        ? Math.min(impact + exploit, 10)
+        : Math.min(1.08 * (impact + exploit), 10);
+  }
+
+  return Math.round(base * 10) / 10;
 }
 
+// CVSS v4.0 Base Score
 function CVSSv4({
-  attackVector,
-  attackComplexity,
-  attackRequirements,
-  privilegesRequired,
-  userInteraction,
-  vulnerabilityResponseEffort,
-  providerUrgency,
-  systemRecovery,
-  confidentiality,
-  integrity,
-  availability,
-  safetyConfidentiality = "N",
-  safetyIntegrity = "N",
-  safetyAvailability = "N",
+  attackVector, // AV: N, A, L, P
+  attackComplexity, // AC: L, H
+  attackRequirements, // AR: N, P
+  privilegesRequired, // PR: N, L, H
+  userInteraction, // UI: N, R
+  scope = "U", // S: U, C
+  confidentiality, // VC: N, L, H
+  integrity, // VI: N, L, H
+  availability, // VA: N, L, H
+  safetyConfidentiality, // SC: N, L, H
+  safetyIntegrity, // SI: N, L, H
+  safetyAvailability, // SA: N, L, H
 }) {
-  const metrics = {
+  const W = {
     AV: { N: 0.85, A: 0.62, L: 0.55, P: 0.2 },
     AC: { L: 0.77, H: 0.44 },
-    AT: { N: 1.0, P: 0.85 },
+    AR: { N: 1.0, P: 0.85 },
     PR: { N: 0.85, L: 0.62, H: 0.27 },
     UI: { N: 0.85, R: 0.62 },
     VC: { N: 0, L: 0.22, H: 0.56 },
@@ -93,56 +96,70 @@ function CVSSv4({
     SA: { N: 0, L: 0.22, H: 0.56 },
   };
 
-  // Validate all required metrics are provided
+  const fields = [
+    attackVector,
+    attackComplexity,
+    attackRequirements,
+    privilegesRequired,
+    userInteraction,
+    confidentiality,
+    integrity,
+    availability,
+    safetyConfidentiality,
+    safetyIntegrity,
+    safetyAvailability,
+  ];
+
+  // Validate using hasOwnProperty for zero values and scope
   if (
-    !attackVector ||
-    !attackComplexity ||
-    !attackRequirements ||
-    !privilegesRequired ||
-    !userInteraction ||
-    !vulnerabilityResponseEffort ||
-    !providerUrgency ||
-    !systemRecovery ||
-    !confidentiality ||
-    !integrity ||
-    !availability
+    fields.some((f) => f == null) ||
+    !W.AV[attackVector] ||
+    !W.AC[attackComplexity] ||
+    !W.AR[attackRequirements] ||
+    !W.PR[privilegesRequired] ||
+    !W.UI[userInteraction] ||
+    !["U", "C"].includes(scope) ||
+    !Object.prototype.hasOwnProperty.call(W.VC, confidentiality) ||
+    !Object.prototype.hasOwnProperty.call(W.VI, integrity) ||
+    !Object.prototype.hasOwnProperty.call(W.VA, availability) ||
+    !Object.prototype.hasOwnProperty.call(W.SC, safetyConfidentiality) ||
+    !Object.prototype.hasOwnProperty.call(W.SI, safetyIntegrity) ||
+    !Object.prototype.hasOwnProperty.call(W.SA, safetyAvailability)
   ) {
-    throw new Error("All required CVSS v4.0 metrics must be provided.");
+    throw new Error(
+      "All required CVSS v4.0 base metrics must be provided and valid."
+    );
   }
 
-  // Destructure all metrics
-  const AV = metrics.AV[attackVector];
-  const AC = metrics.AC[attackComplexity];
-  const AT = metrics.AT[attackRequirements];
-  const PR = metrics.PR[privilegesRequired];
-  const UI = metrics.UI[userInteraction];
-  const VC = metrics.VC[confidentiality];
-  const VI = metrics.VI[integrity];
-  const VA = metrics.VA[availability];
-  const SC = metrics.SC[safetyConfidentiality];
-  const SI = metrics.SI[safetyIntegrity];
-  const SA = metrics.SA[safetyAvailability];
+  const AVw = W.AV[attackVector];
+  const ACw = W.AC[attackComplexity];
+  const ARw = W.AR[attackRequirements];
+  const PRw = W.PR[privilegesRequired];
+  const UIw = W.UI[userInteraction];
+  const VCw = W.VC[confidentiality];
+  const VIw = W.VI[integrity];
+  const VAw = W.VA[availability];
+  const SCw = W.SC[safetyConfidentiality];
+  const SIw = W.SI[safetyIntegrity];
+  const SAw = W.SA[safetyAvailability];
 
-  // Calculate exploitability
-  const exploitability = 8.22 * AV * AC * AT * PR * UI;
-
-  // Calculate impact sub-scores
-  const impactSubScore = 1 - (1 - VC) * (1 - VI) * (1 - VA);
-  const safetySubScore = 1 - (1 - SC) * (1 - SI) * (1 - SA);
-
-  // Impact and safety impact calculations
+  const exploit = 8.22 * AVw * ACw * ARw * PRw * UIw;
+  const impactSub =
+    1 - (1 - VCw) * (1 - VIw) * (1 - VAw) * (1 - SCw) * (1 - SIw) * (1 - SAw);
   const impact =
-    7.52 * (impactSubScore - 0.029) -
-    3.25 * Math.pow(impactSubScore - 0.02, 15);
-  const safetyImpact = 6.42 * safetySubScore;
+    scope === "U"
+      ? 6.42 * impactSub
+      : 7.52 * (impactSub - 0.029) - 3.25 * Math.pow(impactSub - 0.02, 15);
 
-  // Base score calculation
-  const baseScore = Math.min(
-    1.08 * (impact + exploitability + safetyImpact),
-    10
-  );
+  let base = 0;
+  if (impact > 0) {
+    base =
+      scope === "U"
+        ? Math.min(impact + exploit, 10)
+        : Math.min(1.08 * (impact + exploit), 10);
+  }
 
-  return Math.round(baseScore * 10) / 10;
+  return Math.round(base * 10) / 10;
 }
 
 module.exports = {

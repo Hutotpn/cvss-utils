@@ -1,7 +1,9 @@
-name: Publish to npm & GitHub Packages
+name: Publish to npm
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*" # Matches version tags like v1.0.0
 
 jobs:
   publish-npm:
@@ -21,22 +23,3 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-github:
-    runs-on: ubuntu-latest
-    needs: publish-npm
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: "https://npm.pkg.github.com/"
-          scope: "@Hutotpn"
-
-      - run: npm install
-
-      - name: Publish to GitHub Packages
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
