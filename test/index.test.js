@@ -24,43 +24,31 @@ describe("CVSS v3.1 Calculator", () => {
         privilegesRequired: "N",
         // Missing userInteraction and others
       })
-    ).toThrow("All CVSS v3.1 base metrics must be provided.");
+    ).toThrow("All CVSS v3.1 base metrics must be provided and valid.");
   });
 });
 
 describe("CVSS v4.0 Calculator", () => {
-  it("calculates correct base score for a basic set of metrics", () => {
+  it("calculates correct base score for a typical v4 case", () => {
     const score = CVSSv4({
       attackVector: "N", // Network
       attackComplexity: "L", // Low
       attackRequirements: "N", // None
       privilegesRequired: "N", // None
       userInteraction: "N", // None
-      vulnerabilityResponseEffort: "L", // Low
-      providerUrgency: "H", // High
-      systemRecovery: "H", // High
+      scope: "U",
       confidentiality: "H", // High
       integrity: "H", // High
       availability: "H", // High
+      safetyConfidentiality: "N",
+      safetyIntegrity: "N",
+      safetyAvailability: "N",
     });
 
-    // Placeholder: Replace with correct expected score once logic is complete
-    expect(score).toBeGreaterThan(0); // Placeholder check for now
+    expect(score).toBeCloseTo(9.8, 1);
   });
 
-  it("throws an error if any metric is missing", () => {
-    // Test case for missing multiple metrics
-    expect(() =>
-      CVSSv4({
-        attackVector: "N",
-        attackComplexity: "L",
-        // Missing all other required fields
-      })
-    ).toThrow("All required CVSS v4.0 metrics must be provided.");
-  });
-
-  it("throws an error when confidentiality, integrity, or availability are not provided", () => {
-    // Test case for missing confidentiality, integrity, or availability
+  it("throws an error when metrics are missing", () => {
     expect(() =>
       CVSSv4({
         attackVector: "N",
@@ -68,11 +56,10 @@ describe("CVSS v4.0 Calculator", () => {
         attackRequirements: "N",
         privilegesRequired: "N",
         userInteraction: "N",
-        vulnerabilityResponseEffort: "L",
-        providerUrgency: "H",
-        systemRecovery: "H",
-        // Missing confidentiality, integrity, or availability
+        // Missing scope and impact/safety metrics
       })
-    ).toThrow("All required CVSS v4.0 metrics must be provided.");
+    ).toThrow(
+      "All required CVSS v4.0 base metrics must be provided and valid."
+    );
   });
 });

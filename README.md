@@ -10,12 +10,10 @@ A simple calculator for CVSS v3.1 and v4.0 scores. This library helps you comput
 
 ## Installation
 
-You can install this library via npm or GitHub Packages.
-
-### Install via npm:
+You can install this library via npm.
 
 ```bash
-npm install cvss-calculator
+npm install cvss-utils
 ```
 
 ## Usage
@@ -23,7 +21,7 @@ npm install cvss-calculator
 ### CVSS v3.1 Example:
 
 ```js
-const { CVSSv3 } = require("cvss-calculator");
+const { CVSSv3 } = require("cvss-utils");
 
 const score = CVSSv3({
   attackVector: "N",
@@ -41,7 +39,7 @@ console.log(`CVSS v3.1 Base Score: ${score}`);
 ### CVSS v4.0 Example:
 
 ```js
-const { CVSSv4 } = require("cvss-calculator");
+const { CVSSv4 } = require("cvss-utils");
 
 const score = CVSSv4({
   attackVector: "N",
