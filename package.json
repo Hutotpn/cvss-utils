@@ -1,6 +1,6 @@
 {
   "name": "cvss-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A simple tool to score vulnerabilities using CVSS in your JavaScript projects.",
   "main": "./src/index.js",
   "scripts": {
